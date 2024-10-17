@@ -32,6 +32,9 @@ class _HomePageState extends State<HomePage> {
   List<Embalse> _resultados = [];
   bool clicked = false;
 
+  // Nueva variable para la distancia seleccionada en la barra deslizante
+  double _distancia = 100.0;
+
   // Datos de ejemplo de embalses
   final List<Embalse> _embalsesEjemplo = [
     Embalse(
@@ -79,13 +82,13 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    // Filtrar embalses cercanos basándose en la proximidad
-    // Filtrar embalses dentro de 10 km usando la fórmula de Haversine
-  List<Embalse> embalsesCercanos = _embalsesEjemplo.where((embalse) {
-    double distancia = calcularDistancia(lat, lon, embalse.latitud, embalse.longitud);
-    // print('Distancia a ${embalse.nombre}: $distancia km');
-    return distancia <= 100; // 10 km de radio
-  }).toList();   
+    // Filtrar embalses cercanos basándose en la distancia seleccionada
+    List<Embalse> embalsesCercanos = _embalsesEjemplo.where((embalse) {
+      double distancia =
+          calcularDistancia(lat, lon, embalse.latitud, embalse.longitud);
+      // print('Distancia a ${embalse.nombre}: $distancia km');
+      return distancia <= _distancia; // Usar la distancia seleccionada
+    }).toList();
 
     setState(() {
       _resultados = embalsesCercanos;
@@ -143,7 +146,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(height: 8.0),
                     Text(
-                      'Bienvenido a la aplicación de consulta de embalses. Aquí podrás obtener información sobre diferentes embalses de agua introduciendo coordenadas geográficas.\nAparecerán abajo los embalses que estén a menos de 100km del punto dado.',
+                      'Bienvenido a la aplicación de consulta de embalses. Aquí podrás obtener información sobre diferentes embalses de agua introduciendo coordenadas geográficas.\nAparecerán abajo los embalses que estén a menos de la distancia seleccionada del punto dado.',
                       style: TextStyle(
                         color: Colors.green[600],
                       ),
@@ -160,8 +163,9 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 8.0),
                     Text(
                       '1. Introduce la latitud y longitud en los campos correspondientes.\n'
-                      '2. Haz clic en el botón "Buscar".\n'
-                      '3. Los resultados aparecerán debajo, mostrando los embalses cercanos a las coordenadas proporcionadas.',
+                      '2. Ajusta la distancia de búsqueda usando la barra deslizante.\n'
+                      '3. Haz clic en el botón "Buscar".\n'
+                      '4. Los resultados aparecerán debajo, mostrando los embalses cercanos a las coordenadas proporcionadas.',
                       style: TextStyle(
                         color: Colors.green[700],
                       ),
@@ -171,10 +175,36 @@ class _HomePageState extends State<HomePage> {
                     Row(
                       children: [
                         CampoLatitud(latitudController: _latitudController),
-                        
                         const SizedBox(width: 16.0),
-
                         CampoLongitud(longitudController: _longitudController),
+                      ],
+                    ),
+                    const SizedBox(height: 16.0),
+                    // Barra deslizante para la distancia
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Distancia de búsqueda: ${_distancia.round()} km',
+                          style: TextStyle(
+                            color: Colors.green[700],
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Slider(
+                          value: _distancia,
+                          min: 0,
+                          max: 500,
+                          divisions: 25,
+                          label: '${_distancia.round()} km',
+                          activeColor: Colors.green[600],
+                          inactiveColor: Colors.green[200],
+                          onChanged: (double value) {
+                            setState(() {
+                              _distancia = value;
+                            });
+                          },
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16.0),
@@ -184,7 +214,8 @@ class _HomePageState extends State<HomePage> {
                       child: ElevatedButton(
                         onPressed: _buscarEmbalses,
                         style: ElevatedButton.styleFrom(
-                          foregroundColor: Colors.white, backgroundColor: Colors.green[600],
+                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.green[600],
                           padding: const EdgeInsets.symmetric(vertical: 16.0),
                         ),
                         child: const Text(
@@ -199,8 +230,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 24.0),
             // Resultados de la Búsqueda
-            if (_resultados.isNotEmpty)
-              EmbalseCard(resultados: _resultados),
+            if (_resultados.isNotEmpty) EmbalseCard(resultados: _resultados),
             if (_resultados.isEmpty && clicked)
               const Text(
                 'No se encontraron embalses cercanos a las coordenadas proporcionadas.',
@@ -323,7 +353,7 @@ class EmbalseCard extends StatelessWidget {
                           color: Colors.green[800],
                         ),
                       ),
-                     const SizedBox(height: 8.0),
+                      const SizedBox(height: 8.0),
                       Text(
                         'Capacidad: ${embalse.capacidad}',
                         style: TextStyle(
