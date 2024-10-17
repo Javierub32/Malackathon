@@ -119,9 +119,7 @@ class _HomePageState extends State<HomePage> {
   int _calculateCrossAxisCount(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
 
-    if (screenWidth >= 1200) {
-      return 4;
-    } else if (screenWidth >= 800) {
+    if (screenWidth >= 800) {
       return 3;
     } else if (screenWidth >= 600) {
       return 2;
@@ -139,7 +137,7 @@ class _HomePageState extends State<HomePage> {
       ),
       body: SingleChildScrollView(
         controller: _scrollController, // Asignar el ScrollController aquí
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.symmetric(vertical: 16.0, horizontal: MediaQuery.of(context).size.width > 1000 ? 256.0 : 16.0),
         child: Column(
           children: [
             // Tarjeta de Información
@@ -286,42 +284,66 @@ class _HomePageState extends State<HomePage> {
                 key: _resultKey, // Asignar el GlobalKey aquí
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Resultados de la búsqueda',
-                    style: TextStyle(
-                      fontSize: 18.0,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green[800],
+                  Center(
+                    child: Text(
+                      'Resultados de la búsqueda',
+                      style: TextStyle(
+                        fontSize: 18.0,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green[800],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16.0),
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: _calculateCrossAxisCount(context),
-                      crossAxisSpacing: 16.0,
-                      mainAxisSpacing: 16.0,
-                      childAspectRatio: 3 / 2, // Ajusta según tus necesidades
+                  Center(
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 8.0,
+                      runSpacing: 8.0,
+                      children: _resultados.map((embalse) {
+                        if (_currentLatitud != null && _currentLongitud != null) {
+                          return EmbalseGridItem(
+                            embalse: embalse,
+                            latitud: _currentLatitud!,
+                            longitud: _currentLongitud!,
+                          );
+                        } else {
+                          return EmbalseGridItem(
+                            embalse: embalse,
+                            latitud: 0.0, // Valor por defecto o manejo alternativo
+                            longitud: 0.0,
+                          );
+                        }
+                      }).toList(),
                     ),
-                    itemCount: _resultados.length,
-                    itemBuilder: (context, index) {
-                      final embalse = _resultados[index];
-                      if (_currentLatitud != null && _currentLongitud != null) {
-                        return EmbalseGridItem(
-                          embalse: embalse,
-                          latitud: _currentLatitud!,
-                          longitud: _currentLongitud!,
-                        );
-                      } else {
-                        return EmbalseGridItem(
-                          embalse: embalse,
-                          latitud: 0.0, // Valor por defecto o manejo alternativo
-                          longitud: 0.0,
-                        );
-                      }
-                    },
                   ),
+                  // GridView.builder(
+                  //   shrinkWrap: true,
+                  //   physics: const NeverScrollableScrollPhysics(),
+                  //   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  //     crossAxisCount: _calculateCrossAxisCount(context),
+                  //     crossAxisSpacing: 16.0,
+                  //     mainAxisSpacing: 16.0,
+                  //     childAspectRatio: 3 / 2,
+                  //   ),
+                  //   itemCount: _resultados.length,
+                  //   itemBuilder: (context, index) {
+                  //     final embalse = _resultados[index];
+                  //     if (_currentLatitud != null && _currentLongitud != null) {
+                  //       return EmbalseGridItem(
+                  //         embalse: embalse,
+                  //         latitud: _currentLatitud!,
+                  //         longitud: _currentLongitud!,
+                  //       );
+                  //     } else {
+                  //       return EmbalseGridItem(
+                  //         embalse: embalse,
+                  //         latitud: 0.0, // Valor por defecto o manejo alternativo
+                  //         longitud: 0.0,
+                  //       );
+                  //     }
+                  //   },
+                  // ),
                 ],
               ),
             if (_resultados.isEmpty && clicked)
@@ -422,6 +444,7 @@ class EmbalseGridItem extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
+              overflow: TextOverflow.ellipsis,
               embalse.nombre,
               style: TextStyle(
                 fontSize: 16.0,
