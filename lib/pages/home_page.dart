@@ -20,6 +20,8 @@ class _HomePageState extends State<HomePage> {
   final GlobalKey _resultKey = GlobalKey(); // GlobalKey para los resultados
   List<Embalse> _resultados = [];
   bool clicked = false;
+  bool _isLoading = false; // Nueva variable para controlar el estado de carga
+
 
   // Nueva variable para la distancia seleccionada en la barra deslizante
   double _distancia = 100.0;
@@ -32,69 +34,71 @@ class _HomePageState extends State<HomePage> {
   double? _currentLongitud;
 
   void _buscarEmbalses() async {
-    final double? lat = double.tryParse(_latitudController.text);
-    final double? lon = double.tryParse(_longitudController.text);
+  final double? lat = double.tryParse(_latitudController.text);
+  final double? lon = double.tryParse(_longitudController.text);
 
-    if (lat == null || lon == null) {
-      // Mostrar un mensaje de error si las entradas no son válidas
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, ingresa coordenadas válidas.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+  if (lat == null || lon == null) {
+    // Mostrar un mensaje de error si las entradas no son válidas
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Por favor, ingresa coordenadas válidas.'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
 
-    setState(() {
-      clicked = true;
-      _resultados.clear(); // Limpiar resultados anteriores
-      _currentLatitud = lat;
-      _currentLongitud = lon;
+  setState(() {
+    clicked = true;
+    _isLoading = true; // Iniciar carga
+    _resultados.clear(); // Limpiar resultados anteriores
+    _currentLatitud = lat;
+    _currentLongitud = lon;
+  });
+
+  try {
+    List<Embalse> embalses = await apiService.fetchEmbalses();
+
+    List<Embalse> embalsesCercanos = embalses.where((embalse) {
+      double distancia = calcularDistancia(lat, lon, embalse.x, embalse.y);
+      return distancia <= _distancia;
+    }).toList();
+
+    embalsesCercanos.sort((a, b) {
+      double distanciaA = calcularDistancia(lat, lon, a.x, a.y);
+      double distanciaB = calcularDistancia(lat, lon, b.x, b.y);
+      return distanciaA.compareTo(distanciaB);
     });
 
-    try {
-      // Obtener todos los embalses desde la API
-      List<Embalse> embalses = await apiService.fetchEmbalses();
+    setState(() {
+      _resultados = embalsesCercanos;
+      _isLoading = false; // Finalizar carga
+    });
 
-      // Filtrar embalses cercanos basándose en la distancia seleccionada
-      List<Embalse> embalsesCercanos = embalses.where((embalse) {
-        double distancia = calcularDistancia(
-          lat,
-          lon,
-          embalse.x, // Usar 'x' para la latitud
-          embalse.y, // Usar 'y' para la longitud
+    if (embalsesCercanos.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Scrollable.ensureVisible(
+          _resultKey.currentContext!,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
         );
-        return distancia <= _distancia; // Usar la distancia seleccionada
-      }).toList();
-
-      setState(() {
-        _resultados = embalsesCercanos;
-      });
-
-      // Hacer scroll a los resultados después de que el estado se haya actualizado
-      if (embalsesCercanos.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          Scrollable.ensureVisible(
-            _resultKey.currentContext!,
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeInOut,
-          );
-        });
-      }
-    } catch (e) {
-      // Manejar errores al obtener los datos de la API
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al cargar embalses: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      setState(() {
-        _resultados.clear();
       });
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error al cargar embalses: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    setState(() {
+      _resultados.clear();
+      _isLoading = false; // Finalizar carga en caso de error
+    });
   }
+}
+
+
 
   void _limpiarCampos() {
     _latitudController.clear();
@@ -172,7 +176,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(height: 8.0),
                     Text(
-                      'Bienvenido a la aplicación de consulta de embalses. Aquí podrás obtener información sobre diferentes embalses de agua introduciendo coordenadas geográficas.\nAparecerán abajo los embalses que estén a menos de la distancia seleccionada del punto dado.',
+                      'Esta herramienta ayuda a los equipos de bomberos a identificar rápidamente los embalses más cercanos a un punto específico.\nEstá diseñada para que los pilotos de helicópteros puedan localizar la fuente de agua más próxima, agilizando la extinción de incendios.',
                       style: TextStyle(
                         color: Colors.black87.withOpacity(0.7),
                       ),
@@ -279,57 +283,67 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 24.0),
             // Resultados de la Búsqueda
-            if (_resultados.isNotEmpty)
-              Column(
-                key: _resultKey, // Asignar el GlobalKey aquí
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Text(
-                      'Resultados de la búsqueda',
-                      style: TextStyle(
-                        fontSize: 18.0,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green[800],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16.0),
-                  Center(
-                    child: Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 8.0,
-                      runSpacing: 8.0,
-                      children: _resultados.map((embalse) {
-                        if (_currentLatitud != null && _currentLongitud != null) {
-                          return EmbalseGridItem(
-                            embalse: embalse,
-                            latitud: _currentLatitud!,
-                            longitud: _currentLongitud!,
-                          );
-                        } else {
-                          return EmbalseGridItem(
-                            embalse: embalse,
-                            latitud: 0.0, // Valor por defecto o manejo alternativo
-                            longitud: 0.0,
-                          );
-                        }
-                      }).toList(),
-                    ),
-                  ),
-                ],
+            // Mostrar el indicador de carga mientras se cargan los datos
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Center(
+                child: CircularProgressIndicator(),
               ),
-            if (_resultados.isEmpty && clicked)
-              const Padding(
-                padding: EdgeInsets.only(top: 16.0),
-                child: Text(
-                  'No se encontraron embalses cercanos a las coordenadas proporcionadas.',
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
+            ),
+          // Mostrar los resultados de búsqueda o el mensaje de "No se encontraron"
+          if (!_isLoading && _resultados.isNotEmpty)
+            Column(
+              key: _resultKey,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Text(
+                    'Resultados de la búsqueda',
+                    style: TextStyle(
+                      fontSize: 18.0,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green[800],
+                    ),
                   ),
                 ),
+                const SizedBox(height: 16.0),
+                Center(
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8.0,
+                    runSpacing: 8.0,
+                    children: _resultados.map((embalse) {
+                      if (_currentLatitud != null && _currentLongitud != null) {
+                        return EmbalseGridItem(
+                          embalse: embalse,
+                          latitud: _currentLatitud!,
+                          longitud: _currentLongitud!,
+                        );
+                      } else {
+                        return EmbalseGridItem(
+                          embalse: embalse,
+                          latitud: 0.0, // Valor por defecto o manejo alternativo
+                          longitud: 0.0,
+                        );
+                      }
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+
+          if (!_isLoading && _resultados.isEmpty && clicked)
+            const Padding(
+              padding: EdgeInsets.only(top: 16.0),
+              child: Text(
+                'No se encontraron embalses cercanos a las coordenadas proporcionadas.',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
+            ),
           ],
         ),
       ),
