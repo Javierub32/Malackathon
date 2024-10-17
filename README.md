@@ -1,3 +1,6 @@
+# Como lanzar
+    Para lanzar la aplicación, hay que clonar el repositorio de git, teniendo instalada la extensión de flutter, pulsar el dispositivo en el que quieres ejecutar la app (Web) y ejecutar. Hemos desplegado la web en un servidor de Oracle para ahorrar la ejecución del programa, entrando en esta url se puede acceder a la web: http://143.47.32.82.
+
 # Localizador de Embalses Cercanos
 
     Esta aplicación web desarrollada en Flutter permite a los usuarios encontrar embalses cercanos a una ubicación específica, proporcionando información clave para optimizar las operaciones de extinción de incendios. Está diseñada principalmente para ayudar a los bomberos, en especial a los pilotos de helicópteros, a localizar rápidamente las fuentes de agua más cercanas a un punto determinado.
