@@ -19,10 +19,10 @@ class _EmbalsesPageState extends State<EmbalsesPage> {
 
   Future<void> _loadEmbalses() async {
     try {
-      final pokemonService = EmbalseService();
-      final fetchedPokemons = await pokemonService.fetchEmbalses();
+      final embalseService = EmbalseService();
+      final fetchedEmbalses = await embalseService.fetchEmbalses();
       setState(() {
-        embalse = fetchedPokemons;
+        embalse = fetchedEmbalses;
       });
     } catch (e) {
       print('Error: $e');
