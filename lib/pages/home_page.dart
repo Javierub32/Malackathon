@@ -1,22 +1,9 @@
-import 'package:flutter/material.dart'; 
+// home_page.dart
+
+import 'package:flutter/material.dart';
 import 'package:hackaton/functions/calcular_distancia.dart';
-
-// Modelo para representar un embalse
-class Embalse {
-  final String nombre;
-  final String capacidad;
-  final String nivel;
-  final double latitud;
-  final double longitud;
-
-  Embalse({
-    required this.nombre,
-    required this.capacidad,
-    required this.nivel,
-    required this.latitud,
-    required this.longitud,
-  });
-}
+import 'package:hackaton/models/embalse.dart';
+import 'package:hackaton/services/api_services.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -37,40 +24,14 @@ class _HomePageState extends State<HomePage> {
   // Nueva variable para la distancia seleccionada en la barra deslizante
   double _distancia = 100.0;
 
-  // Datos de ejemplo de embalses
-  final List<Embalse> _embalsesEjemplo = [
-    Embalse(
-      nombre: "Embalse del Ebro",
-      capacidad: "540 hm³",
-      nivel: "75%",
-      latitud: 42.97,
-      longitud: -4.05,
-    ),
-    Embalse(
-      nombre: "Embalse de Mequinenza",
-      capacidad: "1534 hm³",
-      nivel: "82%",
-      latitud: 41.37,
-      longitud: 0.30,
-    ),
-    Embalse(
-      nombre: "Embalse de Alarcón",
-      capacidad: "1118 hm³",
-      nivel: "60%",
-      latitud: 39.56,
-      longitud: -2.15,
-    ),
-    Embalse(
-      nombre: "Embalse de Buendía",
-      capacidad: "1639 hm³",
-      nivel: "45%",
-      latitud: 40.40,
-      longitud: -2.76,
-    ),
-    // Puedes agregar más embalses aquí
-  ];
+  // Instancia del servicio de la API
+  final ApiService apiService = ApiService();
 
-  void _buscarEmbalses() {
+  // Variables para almacenar la latitud y longitud actuales
+  double? _currentLatitud;
+  double? _currentLongitud;
+
+  void _buscarEmbalses() async {
     final double? lat = double.tryParse(_latitudController.text);
     final double? lon = double.tryParse(_longitudController.text);
 
@@ -85,26 +46,52 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    // Filtrar embalses cercanos basándose en la distancia seleccionada
-    List<Embalse> embalsesCercanos = _embalsesEjemplo.where((embalse) {
-      double distancia =
-          calcularDistancia(lat, lon, embalse.latitud, embalse.longitud);
-      return distancia <= _distancia; // Usar la distancia seleccionada
-    }).toList();
-
     setState(() {
-      _resultados = embalsesCercanos;
       clicked = true;
+      _resultados.clear(); // Limpiar resultados anteriores
+      _currentLatitud = lat;
+      _currentLongitud = lon;
     });
 
-    // Hacer scroll a los resultados después de que el estado se haya actualizado
-    if (embalsesCercanos.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Scrollable.ensureVisible(
-          _resultKey.currentContext!,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
+    try {
+      // Obtener todos los embalses desde la API
+      List<Embalse> embalses = await apiService.fetchEmbalses();
+
+      // Filtrar embalses cercanos basándose en la distancia seleccionada
+      List<Embalse> embalsesCercanos = embalses.where((embalse) {
+        double distancia = calcularDistancia(
+          lat,
+          lon,
+          embalse.x, // Usar 'x' para la latitud
+          embalse.y, // Usar 'y' para la longitud
         );
+        return distancia <= _distancia; // Usar la distancia seleccionada
+      }).toList();
+
+      setState(() {
+        _resultados = embalsesCercanos;
+      });
+
+      // Hacer scroll a los resultados después de que el estado se haya actualizado
+      if (embalsesCercanos.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Scrollable.ensureVisible(
+            _resultKey.currentContext!,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          );
+        });
+      }
+    } catch (e) {
+      // Manejar errores al obtener los datos de la API
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cargar embalses: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      setState(() {
+        _resultados.clear();
       });
     }
   }
@@ -115,6 +102,8 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _resultados.clear();
       clicked = false;
+      _currentLatitud = null;
+      _currentLongitud = null;
     });
   }
 
@@ -318,7 +307,19 @@ class _HomePageState extends State<HomePage> {
                     itemCount: _resultados.length,
                     itemBuilder: (context, index) {
                       final embalse = _resultados[index];
-                      return EmbalseGridItem(embalse: embalse);
+                      if (_currentLatitud != null && _currentLongitud != null) {
+                        return EmbalseGridItem(
+                          embalse: embalse,
+                          latitud: _currentLatitud!,
+                          longitud: _currentLongitud!,
+                        );
+                      } else {
+                        return EmbalseGridItem(
+                          embalse: embalse,
+                          latitud: 0.0, // Valor por defecto o manejo alternativo
+                          longitud: 0.0,
+                        );
+                      }
                     },
                   ),
                 ],
@@ -395,11 +396,20 @@ class CampoLongitud extends StatelessWidget {
 
 class EmbalseGridItem extends StatelessWidget {
   final Embalse embalse;
+  final double latitud;
+  final double longitud;
 
-  const EmbalseGridItem({Key? key, required this.embalse}) : super(key: key);
+  const EmbalseGridItem({
+    Key? key,
+    required this.embalse,
+    required this.latitud,
+    required this.longitud,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    double distancia = calcularDistancia(latitud, longitud, embalse.x, embalse.y);
+
     return Card(
       color: Colors.white,
       elevation: 4.0,
@@ -421,19 +431,25 @@ class EmbalseGridItem extends StatelessWidget {
             ),
             const SizedBox(height: 8.0),
             Text(
-              'Capacidad: ${embalse.capacidad}',
+              'Agua Total: ${embalse.aguaTotal} hm³',
               style: TextStyle(
                 color: Colors.green[700],
               ),
             ),
             Text(
-              'Nivel actual: ${embalse.nivel}',
+              'Provincia: ${embalse.provincia}',
               style: TextStyle(
                 color: Colors.green[700],
               ),
             ),
             Text(
-              'Coordenadas: ${embalse.latitud}, ${embalse.longitud}',
+              'CCAA: ${embalse.ccaa}',
+              style: TextStyle(
+                color: Colors.green[700],
+              ),
+            ),
+            Text(
+              'Distancia: ${distancia.toStringAsFixed(2)} km',
               style: TextStyle(
                 color: Colors.green[700],
               ),
