@@ -317,33 +317,6 @@ class _HomePageState extends State<HomePage> {
                       }).toList(),
                     ),
                   ),
-                  // GridView.builder(
-                  //   shrinkWrap: true,
-                  //   physics: const NeverScrollableScrollPhysics(),
-                  //   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  //     crossAxisCount: _calculateCrossAxisCount(context),
-                  //     crossAxisSpacing: 16.0,
-                  //     mainAxisSpacing: 16.0,
-                  //     childAspectRatio: 3 / 2,
-                  //   ),
-                  //   itemCount: _resultados.length,
-                  //   itemBuilder: (context, index) {
-                  //     final embalse = _resultados[index];
-                  //     if (_currentLatitud != null && _currentLongitud != null) {
-                  //       return EmbalseGridItem(
-                  //         embalse: embalse,
-                  //         latitud: _currentLatitud!,
-                  //         longitud: _currentLongitud!,
-                  //       );
-                  //     } else {
-                  //       return EmbalseGridItem(
-                  //         embalse: embalse,
-                  //         latitud: 0.0, // Valor por defecto o manejo alternativo
-                  //         longitud: 0.0,
-                  //       );
-                  //     }
-                  //   },
-                  // ),
                 ],
               ),
             if (_resultados.isEmpty && clicked)
