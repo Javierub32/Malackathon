@@ -178,7 +178,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(height: 8.0),
                     Text(
-                      'Bienvenido a la aplicación de consulta de embalses. Aquí podrás obtener información sobre diferentes embalses de agua introduciendo coordenadas geográficas.\nAparecerán abajo los embalses que estén a menos de la distancia seleccionada del punto dado.',
+                      'Esta herramienta ayuda a los equipos de bomberos a identificar rápidamente los embalses más cercanos a un punto específico.\nEstá diseñada para que los pilotos de helicópteros puedan localizar la fuente de agua más próxima, agilizando la extinción de incendios.',
                       style: TextStyle(
                         color: Colors.black87.withOpacity(0.7),
                       ),
