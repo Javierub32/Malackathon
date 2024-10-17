@@ -32,69 +32,77 @@ class _HomePageState extends State<HomePage> {
   double? _currentLongitud;
 
   void _buscarEmbalses() async {
-    final double? lat = double.tryParse(_latitudController.text);
-    final double? lon = double.tryParse(_longitudController.text);
+  final double? lat = double.tryParse(_latitudController.text);
+  final double? lon = double.tryParse(_longitudController.text);
 
-    if (lat == null || lon == null) {
-      // Mostrar un mensaje de error si las entradas no son válidas
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, ingresa coordenadas válidas.'),
-          backgroundColor: Colors.red,
-        ),
+  if (lat == null || lon == null) {
+    // Mostrar un mensaje de error si las entradas no son válidas
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Por favor, ingresa coordenadas válidas.'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
+  setState(() {
+    clicked = true;
+    _resultados.clear(); // Limpiar resultados anteriores
+    _currentLatitud = lat;
+    _currentLongitud = lon;
+  });
+
+  try {
+    // Obtener todos los embalses desde la API
+    List<Embalse> embalses = await apiService.fetchEmbalses();
+
+    // Filtrar embalses cercanos basándose en la distancia seleccionada
+    List<Embalse> embalsesCercanos = embalses.where((embalse) {
+      double distancia = calcularDistancia(
+        lat,
+        lon,
+        embalse.x, // Usar 'x' para la latitud
+        embalse.y, // Usar 'y' para la longitud
       );
-      return;
-    }
+      return distancia <= _distancia; // Usar la distancia seleccionada
+    }).toList();
 
-    setState(() {
-      clicked = true;
-      _resultados.clear(); // Limpiar resultados anteriores
-      _currentLatitud = lat;
-      _currentLongitud = lon;
+    // Ordenar los embalses por distancia de menor a mayor
+    embalsesCercanos.sort((a, b) {
+      double distanciaA = calcularDistancia(lat, lon, a.x, a.y);
+      double distanciaB = calcularDistancia(lat, lon, b.x, b.y);
+      return distanciaA.compareTo(distanciaB);
     });
 
-    try {
-      // Obtener todos los embalses desde la API
-      List<Embalse> embalses = await apiService.fetchEmbalses();
+    setState(() {
+      _resultados = embalsesCercanos;
+    });
 
-      // Filtrar embalses cercanos basándose en la distancia seleccionada
-      List<Embalse> embalsesCercanos = embalses.where((embalse) {
-        double distancia = calcularDistancia(
-          lat,
-          lon,
-          embalse.x, // Usar 'x' para la latitud
-          embalse.y, // Usar 'y' para la longitud
+    // Hacer scroll a los resultados después de que el estado se haya actualizado
+    if (embalsesCercanos.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Scrollable.ensureVisible(
+          _resultKey.currentContext!,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
         );
-        return distancia <= _distancia; // Usar la distancia seleccionada
-      }).toList();
-
-      setState(() {
-        _resultados = embalsesCercanos;
-      });
-
-      // Hacer scroll a los resultados después de que el estado se haya actualizado
-      if (embalsesCercanos.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          Scrollable.ensureVisible(
-            _resultKey.currentContext!,
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeInOut,
-          );
-        });
-      }
-    } catch (e) {
-      // Manejar errores al obtener los datos de la API
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al cargar embalses: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      setState(() {
-        _resultados.clear();
       });
     }
+  } catch (e) {
+    // Manejar errores al obtener los datos de la API
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error al cargar embalses: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    setState(() {
+      _resultados.clear();
+    });
   }
+}
+
 
   void _limpiarCampos() {
     _latitudController.clear();
