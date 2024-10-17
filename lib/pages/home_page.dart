@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'; 
 import 'package:hackaton/functions/calcular_distancia.dart';
 
 // Modelo para representar un embalse
@@ -29,6 +29,8 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final TextEditingController _latitudController = TextEditingController();
   final TextEditingController _longitudController = TextEditingController();
+  final ScrollController _scrollController = ScrollController(); // ScrollController
+  final GlobalKey _resultKey = GlobalKey(); // GlobalKey para los resultados
   List<Embalse> _resultados = [];
   bool clicked = false;
 
@@ -65,6 +67,7 @@ class _HomePageState extends State<HomePage> {
       latitud: 40.40,
       longitud: -2.76,
     ),
+    // Puedes agregar más embalses aquí
   ];
 
   void _buscarEmbalses() {
@@ -86,7 +89,6 @@ class _HomePageState extends State<HomePage> {
     List<Embalse> embalsesCercanos = _embalsesEjemplo.where((embalse) {
       double distancia =
           calcularDistancia(lat, lon, embalse.latitud, embalse.longitud);
-      // print('Distancia a ${embalse.nombre}: $distancia km');
       return distancia <= _distancia; // Usar la distancia seleccionada
     }).toList();
 
@@ -94,23 +96,60 @@ class _HomePageState extends State<HomePage> {
       _resultados = embalsesCercanos;
       clicked = true;
     });
+
+    // Hacer scroll a los resultados después de que el estado se haya actualizado
+    if (embalsesCercanos.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Scrollable.ensureVisible(
+          _resultKey.currentContext!,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      });
+    }
+  }
+
+  void _limpiarCampos() {
+    _latitudController.clear();
+    _longitudController.clear();
+    setState(() {
+      _resultados.clear();
+      clicked = false;
+    });
   }
 
   @override
   void dispose() {
     _latitudController.dispose();
     _longitudController.dispose();
+    _scrollController.dispose(); // Dispose del ScrollController
     super.dispose();
+  }
+
+  /// Función para calcular el número de columnas según el ancho de la pantalla
+  int _calculateCrossAxisCount(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+
+    if (screenWidth >= 1200) {
+      return 4;
+    } else if (screenWidth >= 800) {
+      return 3;
+    } else if (screenWidth >= 600) {
+      return 2;
+    } else {
+      return 1;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Consulta de Embalses'),
+        title: const Text('Consulta de Embalses', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.green,
       ),
       body: SingleChildScrollView(
+        controller: _scrollController, // Asignar el ScrollController aquí
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
@@ -148,7 +187,7 @@ class _HomePageState extends State<HomePage> {
                     Text(
                       'Bienvenido a la aplicación de consulta de embalses. Aquí podrás obtener información sobre diferentes embalses de agua introduciendo coordenadas geográficas.\nAparecerán abajo los embalses que estén a menos de la distancia seleccionada del punto dado.',
                       style: TextStyle(
-                        color: Colors.green[600],
+                        color: Colors.black87.withOpacity(0.7),
                       ),
                     ),
                     const SizedBox(height: 16.0),
@@ -167,7 +206,7 @@ class _HomePageState extends State<HomePage> {
                       '3. Haz clic en el botón "Buscar".\n'
                       '4. Los resultados aparecerán debajo, mostrando los embalses cercanos a las coordenadas proporcionadas.',
                       style: TextStyle(
-                        color: Colors.green[700],
+                        color: Colors.black87.withOpacity(0.7),
                       ),
                     ),
                     const SizedBox(height: 16.0),
@@ -208,21 +247,44 @@ class _HomePageState extends State<HomePage> {
                       ],
                     ),
                     const SizedBox(height: 16.0),
-                    // Botón de Búsqueda
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _buscarEmbalses,
-                        style: ElevatedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          backgroundColor: Colors.green[600],
-                          padding: const EdgeInsets.symmetric(vertical: 16.0),
+                    // Botones de Búsqueda y Limpiar
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _buscarEmbalses,
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              backgroundColor: Colors.green[600],
+                              padding: const EdgeInsets.symmetric(vertical: 16.0),
+                              elevation: 4.0, // Añade sombra
+                            ),
+                            icon: const Icon(Icons.search),
+                            label: const Text(
+                              'Buscar',
+                              style: TextStyle(fontSize: 16.0),
+                            ),
+                          ),
                         ),
-                        child: const Text(
-                          'Buscar',
-                          style: TextStyle(fontSize: 16.0),
+                        const SizedBox(width: 16.0),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _limpiarCampos,
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              backgroundColor: Colors.green[600],
+                              padding: const EdgeInsets.symmetric(vertical: 16.0),
+                              elevation: 4.0, // Añade sombra
+                            ),
+                            icon: const Icon(Icons.clear),
+                            label: const Text(
+                              'Limpiar',
+                              style: TextStyle(fontSize: 16.0),
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 ),
@@ -230,13 +292,46 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 24.0),
             // Resultados de la Búsqueda
-            if (_resultados.isNotEmpty) EmbalseCard(resultados: _resultados),
+            if (_resultados.isNotEmpty)
+              Column(
+                key: _resultKey, // Asignar el GlobalKey aquí
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Resultados de la búsqueda',
+                    style: TextStyle(
+                      fontSize: 18.0,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green[800],
+                    ),
+                  ),
+                  const SizedBox(height: 16.0),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: _calculateCrossAxisCount(context),
+                      crossAxisSpacing: 16.0,
+                      mainAxisSpacing: 16.0,
+                      childAspectRatio: 3 / 2, // Ajusta según tus necesidades
+                    ),
+                    itemCount: _resultados.length,
+                    itemBuilder: (context, index) {
+                      final embalse = _resultados[index];
+                      return EmbalseGridItem(embalse: embalse);
+                    },
+                  ),
+                ],
+              ),
             if (_resultados.isEmpty && clicked)
-              const Text(
-                'No se encontraron embalses cercanos a las coordenadas proporcionadas.',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.bold,
+              const Padding(
+                padding: EdgeInsets.only(top: 16.0),
+                child: Text(
+                  'No se encontraron embalses cercanos a las coordenadas proporcionadas.',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
           ],
@@ -298,13 +393,10 @@ class CampoLongitud extends StatelessWidget {
   }
 }
 
-class EmbalseCard extends StatelessWidget {
-  const EmbalseCard({
-    super.key,
-    required List<Embalse> resultados,
-  }) : _resultados = resultados;
+class EmbalseGridItem extends StatelessWidget {
+  final Embalse embalse;
 
-  final List<Embalse> _resultados;
+  const EmbalseGridItem({Key? key, required this.embalse}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -315,67 +407,36 @@ class EmbalseCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(8.0),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Resultados de la búsqueda',
+              embalse.nombre,
               style: TextStyle(
-                fontSize: 18.0,
+                fontSize: 16.0,
                 fontWeight: FontWeight.bold,
                 color: Colors.green[800],
               ),
             ),
-            const SizedBox(height: 16.0),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _resultados.length,
-              itemBuilder: (context, index) {
-                final embalse = _resultados[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 16.0),
-                  padding: const EdgeInsets.all(16.0),
-                  decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    border: Border.all(color: Colors.green[200]!),
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        embalse.nombre,
-                        style: TextStyle(
-                          fontSize: 16.0,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green[800],
-                        ),
-                      ),
-                      const SizedBox(height: 8.0),
-                      Text(
-                        'Capacidad: ${embalse.capacidad}',
-                        style: TextStyle(
-                          color: Colors.green[700],
-                        ),
-                      ),
-                      Text(
-                        'Nivel actual: ${embalse.nivel}',
-                        style: TextStyle(
-                          color: Colors.green[700],
-                        ),
-                      ),
-                      Text(
-                        'Coordenadas: ${embalse.latitud}, ${embalse.longitud}',
-                        style: TextStyle(
-                          color: Colors.green[700],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+            const SizedBox(height: 8.0),
+            Text(
+              'Capacidad: ${embalse.capacidad}',
+              style: TextStyle(
+                color: Colors.green[700],
+              ),
+            ),
+            Text(
+              'Nivel actual: ${embalse.nivel}',
+              style: TextStyle(
+                color: Colors.green[700],
+              ),
+            ),
+            Text(
+              'Coordenadas: ${embalse.latitud}, ${embalse.longitud}',
+              style: TextStyle(
+                color: Colors.green[700],
+              ),
             ),
           ],
         ),
